@@ -17,7 +17,7 @@ import { SyncMan } from './src/syncModule';
 
 //import modals
 import { SetDefaultProjectForFileModal } from 'src/modals/DefaultProjectModal';
-import {LatestChangesModal} from "./src/modals/LatestChangesModal"
+import { LatestChangesModal } from "./src/modals/LatestChangesModal"
 import { DateMan } from './src/dateMan';
 
 
@@ -26,7 +26,7 @@ export default class TickTickSync extends Plugin {
 	tickTickRestAPI: TickTickRestAPI | undefined | null;
 	tickTickSyncAPI: TickTickSyncAPI | undefined;
 	taskParser: TaskParser | undefined;
-	dateMan : DateMan | undefined;
+	dateMan: DateMan | undefined;
 	cacheOperation: CacheOperation | undefined;
 	fileOperation: FileOperation | undefined;
 	tickTickSync: SyncMan | undefined;
@@ -77,7 +77,7 @@ export default class TickTickSync extends Plugin {
 		}
 
 		//After this point, there's a need to document changes for the users.
-		let notableChanges: string [][] = [];
+		let notableChanges: string[][] = [];
 		if ((!this.settings.version) || (this.isOlder(this.settings.version, '1.0.36'))) {
 			//default to AND because that's what we used to do:
 			this.settings.tagAndOr = 1;
@@ -361,6 +361,18 @@ export default class TickTickSync extends Plugin {
 
 			}
 		});
+
+
+		this.addCommand({
+			id: 'ticktick-sync',
+			name: 'Syncronize TickTick',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				// Called when the user clicks the icon.
+				await this.scheduledSynchronization();
+				await this.unlockSynclock();
+				new Notice(`Sync completed..`);
+			}
+		})
 
 		//display default project for the current file on status bar
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
