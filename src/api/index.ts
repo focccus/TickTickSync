@@ -9,6 +9,8 @@ import { ITask } from './types/Task';
 // import { IFilter } from './types/Filter';
 // import { IHabit } from './types/Habit';
 import { API_ENDPOINTS } from './utils/get-api-endpoints';
+import { IHabit } from './types/Habit';
+import { IHabitCheckin } from './types/HabitCheckin';
 
 const {
 	ticktickServer,
@@ -27,7 +29,8 @@ const {
 	getAllCompletedItems,
 	exportData,
 	projectMove,
-	parentMove
+	parentMove,
+	getHabitRecordsEndPoint
 } = API_ENDPOINTS;
 
 interface IoptionsProps {
@@ -49,13 +52,13 @@ export class Tick {
 	apiUrl: string;
 	loginUrl: string;
 	private originUrl: string;
-	cookies:	string[];
+	cookies: string[];
 	cookieHeader: string;
 
 
-//Dear Future me: the check is a checkpoint based thing. As in: give me everything after a certain checkpoint
-//                0 behavior has become non-deterministic. It appears that checkpoint is a epoch number.
-//                I **think** it indicates the time of last fetch. This could be useful.
+	//Dear Future me: the check is a checkpoint based thing. As in: give me everything after a certain checkpoint
+	//                0 behavior has become non-deterministic. It appears that checkpoint is a epoch number.
+	//                I **think** it indicates the time of last fetch. This could be useful.
 	private userAgent: string;
 	private deviceAgent: string;
 
@@ -87,7 +90,7 @@ export class Tick {
 
 	}
 
-//TODO: in the fullness of time, figure out checkpoint processing to reduce traffic.
+	//TODO: in the fullness of time, figure out checkpoint processing to reduce traffic.
 	private _checkpoint: number;
 
 	get checkpoint(): number {
@@ -125,6 +128,7 @@ export class Tick {
 			const response = await this.makeRequest('Login', url, 'POST', body);
 			console.log('Signed in Response: ', response);
 			if (response) {
+				console.log(response);
 				this.token = response.token;
 				this.inboxProperties.id = response.inboxId;
 				ret = await this.getInboxProperties();
@@ -199,6 +203,46 @@ export class Tick {
 	// HABITS ====================================================================
 
 	//TODO: if Habits required, they come from allHabitsEndPoint
+
+	async getHabits(): Promise<IHabit[]> {
+		try {
+			const url = `${this.apiUrl}/${allHabitsEndPoint}`;
+			const response = await this.makeRequest('Get Habits', url, 'GET', undefined);
+			if (response) {
+				return response;
+			} else {
+				return [];
+			}
+		} catch (e) {
+			console.error('Get Habits failed: ', e);
+			this.setError('Get Habits', null, e);
+			return [];
+		}
+	}
+
+	async getHabitRecords(habits: string[], from?: Date): Promise<{ [key: string]: IHabitCheckin[] }> {
+		try {
+			from ??= new Date();
+
+			const afterStamp = parseInt(window.moment(from).format('YYYYMMDD'));
+			const body = {
+				afterStamp: afterStamp,
+				habitIds: habits
+			};
+
+			const url = `${this.apiUrl}/${getHabitRecordsEndPoint}`;
+			const response = await this.makeRequest('Get Habit Records', url, 'POST', body);
+			if (response) {
+				return response["habitRecords"]
+			}
+
+			return {};
+		} catch (e) {
+			console.error('Get Habit Records failed: ', e);
+			this.setError('Get Habit Records', null, e);
+			return {};
+		}
+	}
 
 	// PROJECTS ==================================================================
 
@@ -613,10 +657,10 @@ export class Tick {
 				return null;
 			}
 			// if (operation == 'Login') {
-				this.cookies =
-					(result.headers["set-cookie"] as unknown as string[]) ?? [];
-				this.cookieHeader = this.cookies.join("; ") + ";";
-				localStorage.setItem("TTS_Cookies", this.cookieHeader);
+			this.cookies =
+				(result.headers["set-cookie"] as unknown as string[]) ?? [];
+			this.cookieHeader = this.cookies.join("; ") + ";";
+			localStorage.setItem("TTS_Cookies", this.cookieHeader);
 			// }
 			return result.json;
 		} catch (exception) {
@@ -661,7 +705,7 @@ export class Tick {
 			'User-Agent': `${this.userAgent}`,
 			'x-device': `${this.deviceAgent}`,
 			// 'Cookie': 't=' + `${this.token}` + '; AWSALB=pSOIrwzvoncz4ZewmeDJ7PMpbA5nOrji5o1tcb1yXSzeEDKmqlk/maPqPiqTGaXJLQk0yokDm0WtcoxmwemccVHh+sFbA59Mx1MBjBFVV9vACQO5HGpv8eO5pXYL; AWSALBCORS=pSOIrwzvoncz4ZewmeDJ7PMpbA5nOrji5o1tcb1yXSzeEDKmqlk/maPqPiqTGaXJLQk0yokDm0WtcoxmwemccVHh+sFbA59Mx1MBjBFVV9vACQO5HGpv8eO5pXYL',
-			'Cookie' : 't=' + `${this.token}` + ";" + this.cookieHeader,
+			'Cookie': 't=' + `${this.token}` + ";" + this.cookieHeader,
 			't': `${this.token}`
 		};
 		// console.log("Regular headers\n", method, "\n", url, "\n", headers);
@@ -677,8 +721,8 @@ export class Tick {
 	}
 
 	private setError(operation: string,
-					 response: RequestUrlResponse | null,
-					 error: string | null) {
+		response: RequestUrlResponse | null,
+		error: string | null) {
 		if (response) {
 			const statusCode = response.status;
 			let errorMessage;
@@ -831,10 +875,10 @@ export class Tick {
 	}
 
 	private generateRandomVersion() {
-			let number;
-			do {
-				number = Math.floor(Math.random() * 4000) + 6000; // Generates a number between 6000 and 9999
-			} while (number < 6000 || number > 9999);
-			return number;
+		let number;
+		do {
+			number = Math.floor(Math.random() * 4000) + 6000; // Generates a number between 6000 and 9999
+		} while (number < 6000 || number > 9999);
+		return number;
 	}
 }

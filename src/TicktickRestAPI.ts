@@ -1,8 +1,10 @@
-import {Tick} from './api'
-import {ITask} from "./api/types/Task"
-import {App, Notice} from 'obsidian';
+import { Tick } from './api'
+import { ITask } from "./api/types/Task"
+import { App, Notice } from 'obsidian';
 import TickTickSync from "../main";
-import {IProject} from './api/types/Project';
+import { IProject } from './api/types/Project';
+import { IHabit } from './api/types/Habit';
+import { IHabitCheckin } from './api/types/HabitCheckin';
 
 export class TickTickRestAPI {
 	app: App;
@@ -10,15 +12,16 @@ export class TickTickRestAPI {
 	api: Tick | null;
 	token: string;
 	baseUrl: string;
+	habitIds?: string[];
 
-	constructor(app: App, plugin: TickTickSync, api: Tick|null) {
+	constructor(app: App, plugin: TickTickSync, api: Tick | null) {
 		//super(app,settings);
 		this.app = app;
 		this.plugin = plugin;
 		this.token = this.plugin.settings.token;
 		this.baseURL = this.plugin.settings.baseURL;
 
-		if (!this.token || this.token === "" ) {
+		if (!this.token || this.token === "") {
 			new Notice("Please login from Settings.", 0)
 			this.api = null;
 			console.error("No Token")
@@ -34,8 +37,9 @@ export class TickTickRestAPI {
 				this.api = new Tick({
 					baseUrl: this.plugin.settings.baseURL,
 					token: this.token,
-					checkPoint: this.plugin.settings.checkPoint });
-				this.api.inboxProperties = {id: this.plugin.settings.inboxID, sortOrder: 0 }
+					checkPoint: this.plugin.settings.checkPoint
+				});
+				this.api.inboxProperties = { id: this.plugin.settings.inboxID, sortOrder: 0 }
 				this.plugin.settings.checkPoint = this.api.checkpoint;
 			} else {
 				this.api = api;
@@ -158,8 +162,7 @@ export class TickTickRestAPI {
 			const saveDateHolder = taskToUpdate.dateHolder;
 			const updateResult = await this.api?.updateTask(taskToUpdate);
 			// console.log("update result: ", updateResult.id2error);
-			if (JSON.stringify(updateResult.id2error) === '{}')
-			{
+			if (JSON.stringify(updateResult.id2error) === '{}') {
 				// console.log('it is fine');
 				//because of the due date BS, we need it back.
 				updatedTask = await this.getTaskById(taskToUpdate.id, taskToUpdate.projectId);
@@ -220,7 +223,7 @@ export class TickTickRestAPI {
 
 
 	// get a task by Id
-	async getTaskById(taskId: string, projectId: string): Promise<ITask|null|undefined> {
+	async getTaskById(taskId: string, projectId: string): Promise<ITask | null | undefined> {
 		await this.initializeAPI();
 		if (!taskId) {
 			throw new Error('taskId is required');
@@ -254,6 +257,46 @@ export class TickTickRestAPI {
 		}
 	}
 
+	//get all habits
+	async GetAllHabits(): Promise<IHabit[]> {
+		await this.initializeAPI();
+		try {
+			const result = await this.api?.getHabits();
+			return (result)
+
+		} catch (error) {
+			console.error('Error get all habits', error);
+			return []
+		}
+	}
+
+	//get all habits
+	async GetHabitsRecordsForDay(date: Date): Promise<{ [key: string]: IHabitCheckin | undefined }> {
+		await this.initializeAPI();
+		try {
+
+			// inititialize habits
+			this.habitIds = this.habitIds || (await this.plugin.cacheOperation?.getHabitIdsFromCache()) || []
+			console.error(this.habitIds);
+
+			let prevDay = new Date();
+			prevDay.setDate(date.getDate() - 2);
+
+			const records = await this.api?.getHabitRecords(this.habitIds, prevDay);
+			if (!records) return {};
+			// filter for provided date 
+			const stamp = parseInt(window.moment(date).format('YYYYMMDD'));
+			const results = Object.fromEntries(
+				Object.entries(records).map(
+					([k, v], i) => [k, v.find((entry) => (entry.stamp || entry.checkinStamp) == stamp)]
+				)
+			)
+			return results
+		} catch (error) {
+			console.error('Error get all habits', error);
+			return {}
+		}
+	}
 
 	//get all projects
 	async GetAllProjects(): Promise<IProject[]> {
@@ -277,7 +320,7 @@ export class TickTickRestAPI {
 			if ((result?.length == 0) && (this.api?.lastError)) {
 				if (this.api?.lastError.statusCode != 200) {
 					let lastError = this.api?.lastError;
-					console.error("Error: ",  lastError.operation, lastError.statusCode, lastError.errorMessage);
+					console.error("Error: ", lastError.operation, lastError.statusCode, lastError.errorMessage);
 					throw new Error(lastError.errorMessage)
 				}
 			}
@@ -285,7 +328,7 @@ export class TickTickRestAPI {
 
 		} catch (error) {
 			console.error('Error get project groups', error);
-			new Notice("Unable to get Tasks: " + errorString , 0)
+			new Notice("Unable to get Tasks: " + errorString, 0)
 			return false
 		}
 	}
@@ -338,7 +381,7 @@ export class TickTickRestAPI {
 		try {
 			//This returns the SyncBean object, which has ALL the task details
 			const result = await this.api?.getTaskDetails();
-			if (!result || result.length === 0 && this.api?.lastError.statusCode!= 200) {
+			if (!result || result.length === 0 && this.api?.lastError.statusCode != 200) {
 				throw new Error("No Results.")
 			}
 			//checkpoint, may have changed. Save it if it has.
@@ -380,7 +423,7 @@ export class TickTickRestAPI {
 
 	}
 
-	async moveTaskParent(taskId: string, newParentId: string, projectId: string ) {
+	async moveTaskParent(taskId: string, newParentId: string, projectId: string) {
 
 		const task = await this.api?.getTask(taskId, projectId);
 

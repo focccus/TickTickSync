@@ -28,7 +28,8 @@
 		"dependency-tree": "11.0.1",
 		"lodash-es": "^4.17.21",
 		"lowdb": "^7.0.1",
-		"obsidian": "latest"
+		"obsidian": "latest",
+		"obsidian-daily-notes-interface": "^0.9.4"
 	},
 	"repository": {
 		"type": "git",

@@ -1,7 +1,7 @@
-import {App, Notice, PluginSettingTab, SearchComponent, Setting, TAbstractFile, TFolder} from 'obsidian';
+import { App, Notice, PluginSettingTab, SearchComponent, Setting, TAbstractFile, TFolder } from 'obsidian';
 import TickTickSync from "../main";
-import {ConfirmFullSyncModal} from "./modals/ConfirmFullSyncModal"
-import {FolderSuggest} from "./utils/FolderSuggester";
+import { ConfirmFullSyncModal } from "./modals/ConfirmFullSyncModal"
+import { FolderSuggest } from "./utils/FolderSuggester";
 import { Tick } from './api';
 import { TickTickRestAPI } from './TicktickRestAPI';
 
@@ -23,7 +23,7 @@ export interface TickTickSyncSettings {
 	enableFullVaultSync: boolean;
 	statistics: any;
 	debugMode: boolean;
-	token:string;
+	token: string;
 	syncLock: boolean;
 	checkPoint: number;
 	version: string;
@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS: TickTickSyncSettings = {
 	defaultProjectName: "Inbox",
 	baseURL: 'ticktick.com',
 	automaticSynchronizationInterval: 300, //default aync interval 300s
-	TickTickTasksData: {"projects": [], "tasks": []},
+	TickTickTasksData: { "projects": [], "tasks": [] },
 	fileMetadata: {},
 	enableFullVaultSync: false,
 	statistics: {},
@@ -68,7 +68,7 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Settings'});
+		containerEl.createEl('h2', { text: 'Settings' });
 
 		if (this.plugin.settings.TickTickTasksData?.projects) {
 			bProjectsLoaded = true;
@@ -81,12 +81,12 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 				console.error("Failed to Load", item.name);
 			}
 		}, {});
-		const providerOptions: Record<string, string> = {"1": "ticktick.com", "2": "dida365.com"}
+		const providerOptions: Record<string, string> = { "1": "ticktick.com", "2": "dida365.com" }
 		const currentVal = Object.keys(providerOptions).find(key => providerOptions[key] === this.plugin.settings.baseURL)
-		const tagAndOr: Record<number, string> = {1: "AND", 2: "OR"}
+		const tagAndOr: Record<number, string> = { 1: "AND", 2: "OR" }
 
 		containerEl.createEl('hr');
-		containerEl.createEl('h1', {text: 'Access Control'});
+		containerEl.createEl('h1', { text: 'Access Control' });
 		let userName: string;
 		let userPassword: string;
 		let bDisplayLogin = (!userName) && (!userPassword)
@@ -124,11 +124,11 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 				.setPlaceholder('Password')
 				.setValue("")
 				.onChange(async (value) => {
-			userPassword = value;
-		})
-	)
+					userPassword = value;
+				})
+			)
 
-	new Setting(containerEl)
+		new Setting(containerEl)
 			.setName("Login")
 			.setDesc("Please login here.")
 			.setHeading()
@@ -148,7 +148,7 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 							this.plugin.tickTickRestAPI = null;
 							await this.plugin.saveSettings();
 							// console.log("Before: ", this.plugin.tickTickRestAPI);
-							delete  this.plugin.tickTickRestAPI
+							delete this.plugin.tickTickRestAPI
 							// console.log("After: ", this.plugin.tickTickRestAPI);
 						}
 						const api = new Tick({
@@ -170,8 +170,9 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 							this.plugin.settings.checkPoint = api.checkpoint;
 							await this.plugin.saveSettings();
 							//it's first login right? Cache the projects for to get the rest of set up done.
-							new Notice('Logged in! Fetching projects', 5);
+							new Notice('Logged in! Fetching projects and habits', 5);
 							await this.plugin.cacheOperation?.saveProjectsToCache();
+							await this.plugin.cacheOperation?.saveHabitsToCache();
 							new Notice('Project Fetch complete.', 5);
 							await this.plugin.saveSettings();
 							this.display();
@@ -204,23 +205,23 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 
 			this.add_default_folder_path();
 
-		new Setting(containerEl)
-			.setName('Default project')
-			.setDesc('New tasks are automatically synced to the default project. You can modify the project here.')
-			.addDropdown(component =>
-				component
-					.addOption(this.plugin.settings.defaultProjectId, this.plugin.settings.defaultProjectName)
-					.addOptions(myProjectsOptions)
-					.onChange(async (value) => {
-						this.plugin.settings.defaultProjectId = value
-						this.plugin.settings.defaultProjectName = await this.plugin.cacheOperation?.getProjectNameByIdFromCache(value)
+			new Setting(containerEl)
+				.setName('Default project')
+				.setDesc('New tasks are automatically synced to the default project. You can modify the project here.')
+				.addDropdown(component =>
+					component
+						.addOption(this.plugin.settings.defaultProjectId, this.plugin.settings.defaultProjectName)
+						.addOptions(myProjectsOptions)
+						.onChange(async (value) => {
+							this.plugin.settings.defaultProjectId = value
+							this.plugin.settings.defaultProjectName = await this.plugin.cacheOperation?.getProjectNameByIdFromCache(value)
 							const defaultProjectFileName = this.plugin.settings.defaultProjectName + ".md"
 							//make sure the file exists.
 							const defaultProjectFile = await this.plugin.fileOperation?.getOrCreateDefaultFile(defaultProjectFileName);
 							if (defaultProjectFile) {
 								this.plugin.cacheOperation?.setDefaultProjectIdForFilepath(defaultProjectFile.path, this.plugin.settings.defaultProjectId)
 							} else {
-								new Notice("Unable to create file for selected default project " + this.plugin.settings.defaultProjectName )
+								new Notice("Unable to create file for selected default project " + this.plugin.settings.defaultProjectName)
 							}
 							await this.plugin.saveSettings()
 						})
@@ -233,28 +234,28 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 					"synchronized. If a project(list) is selected, only tasks in that project will be synchronized. If " +
 					"both are chosen the behavior will be determined by your settings. See result below.")
 
-		new Setting(containerEl)
-			.setName('Project')
-			.setDesc('Only tasks in this project will be synchronized.')
-			.addDropdown(component =>
-				component
-					.addOption("", "")
-					.addOptions(myProjectsOptions)
-					.setValue(this.plugin.settings.SyncProject)
-					.onChange(async (value) => {
-						this.plugin.settings.SyncProject = value;
-						const fileMetaData = this.plugin.settings.fileMetadata;
-						const defaultProjectFileEntry = Object.values(fileMetaData).find(obj => obj.defaultProjectId === this.plugin.settings.SyncProject );
-						if(!defaultProjectFileEntry) {
-							const noticeMsg = "Did not find a default Project File for Project " +
-								myProjectsOptions?.[value] +
-								". Please create a file and set it's default to this project, or select a file to be the default for this project."
-							new Notice(noticeMsg, 0)
-						}
-						await this.plugin.saveSettings()
-						this.display();
-					})
-			)
+			new Setting(containerEl)
+				.setName('Project')
+				.setDesc('Only tasks in this project will be synchronized.')
+				.addDropdown(component =>
+					component
+						.addOption("", "")
+						.addOptions(myProjectsOptions)
+						.setValue(this.plugin.settings.SyncProject)
+						.onChange(async (value) => {
+							this.plugin.settings.SyncProject = value;
+							const fileMetaData = this.plugin.settings.fileMetadata;
+							const defaultProjectFileEntry = Object.values(fileMetaData).find(obj => obj.defaultProjectId === this.plugin.settings.SyncProject);
+							if (!defaultProjectFileEntry) {
+								const noticeMsg = "Did not find a default Project File for Project " +
+									myProjectsOptions?.[value] +
+									". Please create a file and set it's default to this project, or select a file to be the default for this project."
+								new Notice(noticeMsg, 0)
+							}
+							await this.plugin.saveSettings()
+							this.display();
+						})
+				)
 
 			new Setting(containerEl)
 				.setName('Tag Behavior')
@@ -284,7 +285,7 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 							this.plugin.settings.SyncTag = value;
 							await this.plugin.saveSettings();
 							this.display();
-							}, 1000);
+						}, 1000);
 					})
 				)
 			const explanationText = containerEl.createEl('p', { text: 'Project/Tag selection result.' });
@@ -357,28 +358,28 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 			containerEl.createEl('hr');
 			containerEl.createEl('h1', { text: 'Manual operations' });
 
-		new Setting(containerEl)
-			.setName('Manual sync')
-			.setDesc('Manually perform a synchronization task.')
-			.addButton(button => button
-				.setButtonText('Sync')
-				.onClick(async () => {
-					// Add code here to handle exporting TickTick data
-					if (!this.plugin.settings.apiInitialized) {
-						new Notice(`Please log in from settings first`)
-						return
-					}
-					try {
-						await this.plugin.scheduledSynchronization()
-						await this.plugin.unlockSynclock();
-						new Notice(`Sync completed..`)
-					} catch (error) {
-						new Notice(`An error occurred while syncing.:${error}`)
-						await this.plugin.unlockSynclock();
-					}
+			new Setting(containerEl)
+				.setName('Manual sync')
+				.setDesc('Manually perform a synchronization task.')
+				.addButton(button => button
+					.setButtonText('Sync')
+					.onClick(async () => {
+						// Add code here to handle exporting TickTick data
+						if (!this.plugin.settings.apiInitialized) {
+							new Notice(`Please log in from settings first`)
+							return
+						}
+						try {
+							await this.plugin.scheduledSynchronization()
+							await this.plugin.unlockSynclock();
+							new Notice(`Sync completed..`)
+						} catch (error) {
+							new Notice(`An error occurred while syncing.:${error}`)
+							await this.plugin.unlockSynclock();
+						}
 
-				})
-			);
+					})
+				);
 
 
 			new Setting(containerEl)
@@ -426,7 +427,7 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 		const myModal = new ConfirmFullSyncModal(this.app, (result) => {
 			this.ret = result;
 		});
-		const bConfirmation =  await myModal.showModal();
+		const bConfirmation = await myModal.showModal();
 
 		return bConfirmation;
 	}
@@ -597,9 +598,8 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 				cb.setTooltip('Add folder');
 				cb.onClick(async () => {
 					let new_folder = folderSearch?.getValue();
-					const updatedFolder = await  this.validateNewFolder(new_folder);
-					if (this.plugin.settings.debugMode)
-					{
+					const updatedFolder = await this.validateNewFolder(new_folder);
+					if (this.plugin.settings.debugMode) {
 						console.log('updated folder: ', updatedFolder);
 					}
 					if (updatedFolder) {
@@ -653,7 +653,7 @@ export class TickTickSyncSettingTab extends PluginSettingTab {
 		if (!project && tag) {
 			return "Only Tasks tagged with <b>#" + tag + "</b> tag will be synchronized"
 		}
-		if (taskAndOr == 1 ) {
+		if (taskAndOr == 1) {
 			return "Only tasks in <b>" + project + "</b> AND tagged with <b>#" + tag + "</b> tag will be synchronized"
 		} else {
 			return "All tasks in <b>" + project + "</b> will be synchronized. All tasks tagged with <b>#" + tag + "</b> tag will be synchronized"

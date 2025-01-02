@@ -2,7 +2,8 @@ import { App, ListItemCache, Notice, TFile, TFolder } from 'obsidian';
 import TickTickSync from "../main";
 import { ITask } from './api/types/Task';
 import { IProject } from 'src/api/types//Project';
-import {FoundDuplicatesModal} from "./modals/FoundDuplicatesModal";
+import { FoundDuplicatesModal } from "./modals/FoundDuplicatesModal";
+import { IHabit } from './api/types/Habit';
 
 // type TaskDetail = {
 //     taskId: string,
@@ -15,16 +16,16 @@ import {FoundDuplicatesModal} from "./modals/FoundDuplicatesModal";
 // };
 
 export interface FileMetadata {
-	[fileName: string]: {
-		TickTickTasks: TaskDetail[];
-		TickTickCount: number;
-		defaultProjectId: string;
-	};
+    [fileName: string]: {
+        TickTickTasks: TaskDetail[];
+        TickTickCount: number;
+        defaultProjectId: string;
+    };
 }
 
 export interface TaskDetail {
-	taskId: string;
-	taskItems: string[];
+    taskId: string;
+    taskItems: string[];
 }
 
 export class CacheOperation {
@@ -39,14 +40,14 @@ export class CacheOperation {
 
 
     async addTaskToMetadata(filepath: string, task: ITask) {
-		// if (this.plugin.settings.debugMode) {
-		// 	console.log("Adding task to : ", filepath)
-		// }
+        // if (this.plugin.settings.debugMode) {
+        // 	console.log("Adding task to : ", filepath)
+        // }
         let metaData: FileMetadata = await this.getFileMetadata(filepath, task.projectId)
         let taskMeta: TaskDetail;
         taskMeta = { taskId: task.id, taskItems: [] };
         if (task.items && task.items.length > 0) {
-            task.items.forEach((item) => { 
+            task.items.forEach((item) => {
                 taskMeta.taskItems.push(item.id)
             });
         }
@@ -69,9 +70,9 @@ export class CacheOperation {
             if (taskIndex !== -1) {
                 const updatedMetaDataTask = fileMetaData.TickTickTasks[taskIndex];
                 let task = await this.loadTaskFromCacheID(taskId)
-				if (!task.items) {
-					return
-				}
+                if (!task.items) {
+                    return
+                }
                 let taskItems = task.items;
                 taskItemIds.forEach(taskItemId => {
                     //delete from Task
@@ -104,18 +105,18 @@ export class CacheOperation {
     }
 
 
-    async newEmptyFileMetadata(filepath: string, projectId: string | null): Promise<FileMetadata|null> {
-		//There's a case where we are making an entry for an undefined file. Not sure where it's coming from
-		// this should give us a clue.
-		if (!filepath) {
-			console.error("Attempt to create undefined FileMetaData Entry: ", filepath)
-			return null;
-		}
-		const file = this.app.vault.getAbstractFileByPath(filepath);
-		if (file instanceof TFolder) {
-			console.error("Not adding ", filepath, " to Metadata because it's a folder.");
-			return null;
-		}
+    async newEmptyFileMetadata(filepath: string, projectId: string | null): Promise<FileMetadata | null> {
+        //There's a case where we are making an entry for an undefined file. Not sure where it's coming from
+        // this should give us a clue.
+        if (!filepath) {
+            console.error("Attempt to create undefined FileMetaData Entry: ", filepath)
+            return null;
+        }
+        const file = this.app.vault.getAbstractFileByPath(filepath);
+        if (file instanceof TFolder) {
+            console.error("Not adding ", filepath, " to Metadata because it's a folder.");
+            return null;
+        }
         const metadatas = this.plugin.settings.fileMetadata
         if (metadatas[filepath]) {
             //todo: verify did doesn't break anything.
@@ -156,21 +157,21 @@ export class CacheOperation {
     async deleteTaskIdFromMetadata(filepath: string, taskId: string) {
 
         const metadata = await this.getFileMetadata(filepath, null)
-		const oldTickTickTasks = metadata.TickTickTasks;
+        const oldTickTickTasks = metadata.TickTickTasks;
 
         const newTickTickTasks = oldTickTickTasks.filter(obj => obj.taskId !== taskId);
 
         const newTickTickCount = newTickTickTasks.length;
-		metadata.TickTickTasks = newTickTickTasks
-		metadata.TickTickCount = newTickTickCount
+        metadata.TickTickTasks = newTickTickTasks
+        metadata.TickTickCount = newTickTickCount
         await this.updateFileMetadata(filepath, metadata);
 
     }
 
-	async updateTaskMetadata(task: ITask, filePath: string) {
-		await this.deleteTaskIdFromMetadataByTaskId(task.id);
-		await this.addTaskToMetadata(filePath, task);
-	}
+    async updateTaskMetadata(task: ITask, filePath: string) {
+        await this.deleteTaskIdFromMetadataByTaskId(task.id);
+        await this.addTaskToMetadata(filePath, task);
+    }
     async deleteTaskIdFromMetadataByTaskId(taskId: string) {
 
         const metadatas = await this.getFileMetadatas()
@@ -186,46 +187,46 @@ export class CacheOperation {
     }
     //delete filepath from filemetadata
     async deleteFilepathFromMetadata(filepath: string): Promise<FileMetadata> {
-		const fileMetaData: FileMetadata = this.plugin.settings.fileMetadata;
-		const newFileMetadata: FileMetadata = {};
+        const fileMetaData: FileMetadata = this.plugin.settings.fileMetadata;
+        const newFileMetadata: FileMetadata = {};
 
-		for (const filename in fileMetaData) {
-			if (filename !== filepath) {
-				newFileMetadata[filename] = fileMetaData[filename];
-			}
-		}
+        for (const filename in fileMetaData) {
+            if (filename !== filepath) {
+                newFileMetadata[filename] = fileMetaData[filename];
+            }
+        }
 
-		this.plugin.settings.fileMetadata = newFileMetadata;
-		await this.plugin.saveSettings()
-		return this.plugin.settings.fileMetadata;
+        this.plugin.settings.fileMetadata = newFileMetadata;
+        await this.plugin.saveSettings()
+        return this.plugin.settings.fileMetadata;
 
         // console.log(`${filepath} is deleted from file metadatas.`)
     }
 
 
-	//Check for duplicates
-	checkForDuplicates(fileMetadata: FileMetadata) {
-		let taskIds = {};
-		let duplicates = {};
+    //Check for duplicates
+    checkForDuplicates(fileMetadata: FileMetadata) {
+        let taskIds = {};
+        let duplicates = {};
 
-		if (!fileMetadata) {
-			return;
-		}
-		for (const file in fileMetadata) {
-			fileMetadata[file].TickTickTasks.forEach(task => {
-				if (taskIds[task.taskId]) {
-					if (!duplicates[task.taskId]) {
-						duplicates[task.taskId] = [taskIds[task.taskId]];
-					}
-					duplicates[task.taskId].push(file);
-				} else {
-					taskIds[task.taskId] = file;
-				}
-			});
-		}
-		//Some day, may want to do something with all the taskids?
-		return {taskIds,duplicates};
-	}
+        if (!fileMetadata) {
+            return;
+        }
+        for (const file in fileMetadata) {
+            fileMetadata[file].TickTickTasks.forEach(task => {
+                if (taskIds[task.taskId]) {
+                    if (!duplicates[task.taskId]) {
+                        duplicates[task.taskId] = [taskIds[task.taskId]];
+                    }
+                    duplicates[task.taskId].push(file);
+                } else {
+                    taskIds[task.taskId] = file;
+                }
+            });
+        }
+        //Some day, may want to do something with all the taskids?
+        return { taskIds, duplicates };
+    }
 
     //Check errors in filemata where the filepath is incorrect.
     async checkFileMetadata(): Promise<number> {
@@ -316,28 +317,28 @@ export class CacheOperation {
             }
         }
 
-		let filePath = "";
+        let filePath = "";
 
-		if ((projectId === this.plugin.settings.inboxID) ||
-			(projectId === this.plugin.settings.defaultProjectId)){ //highly unlikely, but just in case
-			//They don't have a file for the Inbox. If they have a default project, return that.
-			if (this.plugin.settings.defaultProjectName) {
-				// filePath = this.plugin.settings?.TickTickTasksFilePath +"/"+ this.plugin.settings.defaultProjectName + ".md"
-				filePath = this.plugin.settings.defaultProjectName + ".md"
-				return filePath
-			}
-		}
+        if ((projectId === this.plugin.settings.inboxID) ||
+            (projectId === this.plugin.settings.defaultProjectId)) { //highly unlikely, but just in case
+            //They don't have a file for the Inbox. If they have a default project, return that.
+            if (this.plugin.settings.defaultProjectName) {
+                // filePath = this.plugin.settings?.TickTickTasksFilePath +"/"+ this.plugin.settings.defaultProjectName + ".md"
+                filePath = this.plugin.settings.defaultProjectName + ".md"
+                return filePath
+            }
+        }
         //otherwise, return the project name as a md file and hope for the best.
         filePath = await this.getProjectNameByIdFromCache(projectId) + ".md"
 
         if (!filePath) {
-			//Not a file that's in fileMetaData, not the inbox no default project set
-			let errmsg = `File path not found for ${projectId}`
-			console.warn(errmsg)
-			throw new Error(errmsg);
-		}
-		let errmsg = `File path not found for ${projectId}, returning ${filePath} instead. `
-		console.warn(errmsg)
+            //Not a file that's in fileMetaData, not the inbox no default project set
+            let errmsg = `File path not found for ${projectId}`
+            console.warn(errmsg)
+            throw new Error(errmsg);
+        }
+        let errmsg = `File path not found for ${projectId}, returning ${filePath} instead. `
+        console.warn(errmsg)
 
         return filePath;
     }
@@ -394,7 +395,7 @@ export class CacheOperation {
             this.plugin.settings.TickTickTasksData.tasks.push(task);
             await this.addTaskToMetadata(filePath, task)
 
-			await this.plugin.saveSettings();
+            await this.plugin.saveSettings();
 
         } catch (error) {
             console.error(`Error appending task to Cache: ${error}`);
@@ -402,7 +403,7 @@ export class CacheOperation {
     }
 
     //Read the task with the specified id
-    async loadTaskFromCacheID(taskId: string) : Promise<ITask|null> {
+    async loadTaskFromCacheID(taskId: string): Promise<ITask | null> {
         // console.log("loadTaskFromCacheID")
 
         try {
@@ -415,42 +416,42 @@ export class CacheOperation {
         }
     }
 
-	//get Task titles
-	async getTaskTitles(taskIds: string []): Promise<string []> {
+    //get Task titles
+    async getTaskTitles(taskIds: string[]): Promise<string[]> {
 
-		const savedTasks = this.plugin.settings.TickTickTasksData.tasks;
-		let titles = savedTasks.filter(task => taskIds.includes(task.id)).map(task => task.title);
-		titles = titles.map((task: string ) => {
-			return this.plugin.taskParser?.stripOBSUrl(task);
-		});
+        const savedTasks = this.plugin.settings.TickTickTasksData.tasks;
+        let titles = savedTasks.filter(task => taskIds.includes(task.id)).map(task => task.title);
+        titles = titles.map((task: string) => {
+            return this.plugin.taskParser?.stripOBSUrl(task);
+        });
 
-		return titles;
+        return titles;
 
-	}
+    }
 
 
     //Overwrite the task with the specified id in update
     async updateTaskToCache(task: ITask, movedPath: string | null) {
         try {
-			let filePath: string | null = ""
-			if (!movedPath) {
-				filePath = await this.getFilepathForTask(task.id)
-				if (!filePath) {
-					filePath = await this.getFilepathForProjectId(task.projectId);
-				}
-				if (!filePath) {
-					//we're not likely to get here, but just in case
-					throw new Error(`File not found for ${task.id} - ${task.title}`)
-				}
-			} else {
-				filePath = movedPath;
-			}
+            let filePath: string | null = ""
+            if (!movedPath) {
+                filePath = await this.getFilepathForTask(task.id)
+                if (!filePath) {
+                    filePath = await this.getFilepathForProjectId(task.projectId);
+                }
+                if (!filePath) {
+                    //we're not likely to get here, but just in case
+                    throw new Error(`File not found for ${task.id} - ${task.title}`)
+                }
+            } else {
+                filePath = movedPath;
+            }
 
-			//Assume that dateHolder has been handled before this.
-			//Delete the existing task
-			await this.deleteTaskFromCache(task.id)
-			//Add new task
-			await this.appendTaskToCache(task, filePath);
+            //Assume that dateHolder has been handled before this.
+            //Delete the existing task
+            await this.deleteTaskFromCache(task.id)
+            //Add new task
+            await this.appendTaskToCache(task, filePath);
             return task;
         } catch (error) {
             console.error(`Error updating task to Cache: ${error}`);
@@ -521,7 +522,7 @@ export class CacheOperation {
 
 
             const taskIndex = savedTasks.findIndex((task) => task.id === taskId);
-            if (taskIndex > -1 ) {
+            if (taskIndex > -1) {
                 savedTasks[taskIndex].status = 0;
                 projectId = savedTasks[taskIndex].projectId;
             }
@@ -544,7 +545,7 @@ export class CacheOperation {
             const savedTasks = this.plugin.settings.TickTickTasksData.tasks
 
             const taskIndex = savedTasks.findIndex((task) => task.id === taskId);
-            if (taskIndex > -1)  {
+            if (taskIndex > -1) {
                 savedTasks[taskIndex].status = 2;
                 projectId = savedTasks[taskIndex].projectId;
             }
@@ -573,7 +574,7 @@ export class CacheOperation {
     }
 
 
-	//Delete task through ID array
+    //Delete task through ID array
     async deleteTaskFromCacheByIDs(deletedTaskIds: string[]) {
         try {
             const savedTasks = this.plugin.settings.TickTickTasksData.tasks
@@ -606,7 +607,7 @@ export class CacheOperation {
 
 
 
-    async getProjectNameByIdFromCache(projectId: string|null) {
+    async getProjectNameByIdFromCache(projectId: string | null) {
         try {
             const savedProjects = this.plugin.settings.TickTickTasksData.projects
             const targetProject = savedProjects.find(obj => obj.id === projectId);
@@ -618,47 +619,78 @@ export class CacheOperation {
         }
     }
 
+    async getHabitIdsFromCache(): Promise<string[]> {
+        try {
+            const savedHabits: IHabit[] = this.plugin.settings.TickTickTasksData.habits
+            console.log(savedHabits);
 
+            return savedHabits.map(h => h.id)
+        } catch (error) {
+            console.error(`Error finding habits from Cache file: ${error}`);
+            return []
+        }
+    }
+
+    async saveHabitsToCache() {
+        try {
+            const habits: IHabit[] = await this.plugin.tickTickRestAPI?.GetAllHabits();
+            console.log(habits);
+
+            if (!habits) {
+                return false
+            }
+
+            //save to json
+            this.plugin.settings.TickTickTasksData.habits = habits
+            await this.plugin.saveSettings();
+            return true
+        } catch (error) {
+            console.error(`error downloading habits: ${error}`)
+            new Notice("Error downloading habits: " + error.message);
+            await this.plugin.unlockSynclock();;
+            return false
+        }
+    }
 
     //save projects data to json file
     async saveProjectsToCache() {
         try {
             //get projects
             // console.log(`Save Projects to cache with ${this.plugin.tickTickRestAPI}`)
-			//const projectGroups = await this.plugin.tickTickRestAPI?.GetProjectGroups();
+            //const projectGroups = await this.plugin.tickTickRestAPI?.GetProjectGroups();
 
             const projects: IProject[] = await this.plugin.tickTickRestAPI?.GetAllProjects();
-			//TODO: Don't know what I thought projectGroups are but what we really need are project sections.
-			//      For Each Project call getProjectSections
-			//const projectSections = await this.plugin.tickTickRestAPI?.getProjectSections("")''
-			//Moving this here because if they have a list named Inbox, bad shit will happen.
-			let inboxProject = {
-				id: this.plugin.settings.inboxID,
-				name: this.plugin.settings.inboxName
-			};
+            //TODO: Don't know what I thought projectGroups are but what we really need are project sections.
+            //      For Each Project call getProjectSections
+            //const projectSections = await this.plugin.tickTickRestAPI?.getProjectSections("")''
+            //Moving this here because if they have a list named Inbox, bad shit will happen.
+            let inboxProject = {
+                id: this.plugin.settings.inboxID,
+                name: this.plugin.settings.inboxName
+            };
 
-			projects.push(inboxProject);
+            projects.push(inboxProject);
 
-			const duplicates = projects.reduce((acc, obj, index, arr) => {
-				const duplicateIndex = arr.findIndex(item => item.name === obj.name && item.id !== obj.id);
-				if (duplicateIndex !== -1 && !acc.includes(obj)) {
-					acc.push(obj);
-				}
-				return acc;
-			}, []);
-			// @ts-ignore
-			const sortedDuplicates = duplicates.sort((a, b) => a.name.localeCompare(b.name));
-			// @ts-ignore
+            const duplicates = projects.reduce((acc, obj, index, arr) => {
+                const duplicateIndex = arr.findIndex(item => item.name === obj.name && item.id !== obj.id);
+                if (duplicateIndex !== -1 && !acc.includes(obj)) {
+                    acc.push(obj);
+                }
+                return acc;
+            }, []);
+            // @ts-ignore
+            const sortedDuplicates = duplicates.sort((a, b) => a.name.localeCompare(b.name));
+            // @ts-ignore
 
-			if (sortedDuplicates.length > 0) {
-				// @ts-ignore
-				if (this.plugin.settings.debugMode) {
-					console.log("Found duplicate lists:")
-					sortedDuplicates.forEach(thing => console.log(thing.id, thing.name))
-				}
-				await this.showFoundDuplicatesModal(this.app, this.plugin, sortedDuplicates)
-				return false;
-			}
+            if (sortedDuplicates.length > 0) {
+                // @ts-ignore
+                if (this.plugin.settings.debugMode) {
+                    console.log("Found duplicate lists:")
+                    sortedDuplicates.forEach(thing => console.log(thing.id, thing.name))
+                }
+                await this.showFoundDuplicatesModal(this.app, this.plugin, sortedDuplicates)
+                return false;
+            }
 
 
 
@@ -705,7 +737,7 @@ export class CacheOperation {
 
         } catch (error) {
             console.error(`error downloading projects: ${error}`)
-			new Notice("Error downloading projects: " + error.message);
+            new Notice("Error downloading projects: " + error.message);
             await this.plugin.unlockSynclock();;
             return false
         }
@@ -741,94 +773,94 @@ export class CacheOperation {
 
 
     }
-	// TODO: why did I think I needed this?
-	findTaskInMetada(taskId: string, filePath: string) {
-		const fileMetadata = this.plugin.settings.fileMetadata;
-		for (const file in fileMetadata) {
-			console.log("in file: :", file)
-			if (file == filePath) {
-				console.log("breaking")
-				continue;
-			}
-			const tasks = fileMetadata[file].TickTickTasks;
-			for (const task of tasks) {
-				if (task.taskId === taskId) {
-					console.log("found")
-					return true
-				}
-			}
-		}
-		console.log("not found")
-		return false;
-	}
+    // TODO: why did I think I needed this?
+    findTaskInMetada(taskId: string, filePath: string) {
+        const fileMetadata = this.plugin.settings.fileMetadata;
+        for (const file in fileMetadata) {
+            console.log("in file: :", file)
+            if (file == filePath) {
+                console.log("breaking")
+                continue;
+            }
+            const tasks = fileMetadata[file].TickTickTasks;
+            for (const task of tasks) {
+                if (task.taskId === taskId) {
+                    console.log("found")
+                    return true
+                }
+            }
+        }
+        console.log("not found")
+        return false;
+    }
 
-	async isProjectMoved(lineTask: ITask, filePath: string) {
-		const currentLocation = await this.getFilepathForTask(lineTask.id)
-		if (!currentLocation) {
-			//we're checking the filepath, presumably before file metadata is updated.
-			//don't trigger a project move until things settle down.
-			return false;
-		}
+    async isProjectMoved(lineTask: ITask, filePath: string) {
+        const currentLocation = await this.getFilepathForTask(lineTask.id)
+        if (!currentLocation) {
+            //we're checking the filepath, presumably before file metadata is updated.
+            //don't trigger a project move until things settle down.
+            return false;
+        }
 
-		if (currentLocation != filePath) {
-			return currentLocation;
-		}else {
-			return null;
-		}
-	}
+        if (currentLocation != filePath) {
+            return currentLocation;
+        } else {
+            return null;
+        }
+    }
 
-	isTaskInCache(taskId) {
-		try {
-			const savedTasks = this.plugin.settings.TickTickTasksData.tasks
-			const savedTask = savedTasks.find((task: ITask) => task.id === taskId);
-			if (savedTask) {
-				return  true;
-			}
-		} catch (error) {
-			console.error(`Error finding task from Cache: ${error}`);
-			return false;
-		}
-		return false;
-	}
+    isTaskInCache(taskId) {
+        try {
+            const savedTasks = this.plugin.settings.TickTickTasksData.tasks
+            const savedTask = savedTasks.find((task: ITask) => task.id === taskId);
+            if (savedTask) {
+                return true;
+            }
+        } catch (error) {
+            console.error(`Error finding task from Cache: ${error}`);
+            return false;
+        }
+        return false;
+    }
 
-	async findTaskInFiles(taskId: string): Promise<string|null> {
-		const markdownFiles = this.app.vault.getMarkdownFiles();
-		for (const file of markdownFiles) {
-			const listItemsCache: ListItemCache[] = this.app.metadataCache.getFileCache(file)?.listItems ?? [];
+    async findTaskInFiles(taskId: string): Promise<string | null> {
+        const markdownFiles = this.app.vault.getMarkdownFiles();
+        for (const file of markdownFiles) {
+            const listItemsCache: ListItemCache[] = this.app.metadataCache.getFileCache(file)?.listItems ?? [];
 
-			const taskList= await this.findInFile(file, listItemsCache);
-			//returning the first file we find.
-			if (taskList.includes(taskId)) {
-				return file.path;
-			}
-		}
-		return null;
-	}
+            const taskList = await this.findInFile(file, listItemsCache);
+            //returning the first file we find.
+            if (taskList.includes(taskId)) {
+                return file.path;
+            }
+        }
+        return null;
+    }
 
-	private async findInFile(file: TFile, listItemsCache: ListItemCache[]) {
-		const fileCachedContent: string = await this.app.vault.cachedRead(file);
-		const lines: string[] = fileCachedContent.split('\n');
+    private async findInFile(file: TFile, listItemsCache: ListItemCache[]) {
+        const fileCachedContent: string = await this.app.vault.cachedRead(file);
+        const lines: string[] = fileCachedContent.split('\n');
 
-		const tasks: (string | null | undefined)[] = listItemsCache
-			// Get the position of each list item
-			.map((listItemCache: ListItemCache) => listItemCache.position.start.line)
-			// Get the line
-			.map((idx) => lines[idx])
-			// Create a Task from the line
-			.map((line: string) => this.plugin.taskParser?.getTickTickIdFromLineText(line))
-			// Filter out the nulls
-			.filter((taskId: string | null) => taskId !== null)
-		;
+        const tasks: (string | null | undefined)[] = listItemsCache
+            // Get the position of each list item
+            .map((listItemCache: ListItemCache) => listItemCache.position.start.line)
+            // Get the line
+            .map((idx) => lines[idx])
+            // Create a Task from the line
+            .map((line: string) => this.plugin.taskParser?.getTickTickIdFromLineText(line))
+            // Filter out the nulls
+            .filter((taskId: string | null) => taskId !== null)
+            ;
 
-		return tasks;
-	}
+        return tasks;
+    }
 
-	private async showFoundDuplicatesModal(app, plugin, projects: []) {
-		const myModal = new FoundDuplicatesModal(app, plugin,  projects, (result) => {
-			this.ret = result;
-		});
-		const bConfirmation = await myModal.showModal();
+    private async showFoundDuplicatesModal(app, plugin, projects: []) {
+        const myModal = new FoundDuplicatesModal(app, plugin, projects, (result) => {
+            this.ret = result;
+        });
+        const bConfirmation = await myModal.showModal();
 
-		return bConfirmation;
-	}
+        return bConfirmation;
+    }
 }

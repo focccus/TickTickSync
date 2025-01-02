@@ -9,6 +9,8 @@ const API_ENDPOINTS = {
   userPreferencesEndPoint: 'user/preferences/settings',
   allProjectsEndPoint: 'projects',
   allHabitsEndPoint: 'habits',
+  queryHabitCheckinsEndPoint: 'habitCheckins/query',
+  getHabitRecordsEndPoint: 'getHabitRecords',
   allTagsEndPoint: 'tags',
   allTasksEndPoint: 'batch/check/',
   TaskEndPoint: 'task',

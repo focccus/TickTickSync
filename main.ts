@@ -19,6 +19,7 @@ import { SyncMan } from './src/syncModule';
 import { SetDefaultProjectForFileModal } from 'src/modals/DefaultProjectModal';
 import { LatestChangesModal } from "./src/modals/LatestChangesModal"
 import { DateMan } from './src/dateMan';
+import { getDateFromFile } from "obsidian-daily-notes-interface";
 
 
 export default class TickTickSync extends Plugin {
@@ -371,6 +372,42 @@ export default class TickTickSync extends Plugin {
 				await this.scheduledSynchronization();
 				await this.unlockSynclock();
 				new Notice(`Sync completed..`);
+			}
+		})
+
+
+		this.addCommand({
+			id: 'ticktick-fetch-habits',
+			name: 'Fetch TickTick Habits',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				// Called when the user clicks the icon.
+				const date = view.file ? getDateFromFile(view.file, "day") : null
+				if (!date) {
+					new Notice(`Please open a daily note!`);
+					return
+				}
+				const records = await this.tickTickRestAPI?.GetHabitsRecordsForDay(date.toDate())
+				// TODO: dynamically get this
+				const rules: { [key: string]: any } = {
+					'64ba55754e77b16b281aead7': {
+						heading: '## Insights'
+					}
+				}
+
+				if (!records) return;
+				for (const [checklistId, habit] of Object.entries(records)) {
+					const rule = rules[checklistId];
+					if (!rule || !rule.heading) continue;
+
+					// Apply the rule's heading to the document
+					const content = editor.getValue();
+					const headingPosition = content.indexOf(rule.heading);
+					if (headingPosition !== -1) {
+						const lineEnd = content.indexOf('\n', headingPosition);
+						const insertionPos = lineEnd !== -1 ? lineEnd + 1 : content.length;
+						editor.replaceRange(`${habit?.content || ''}\n`, editor.offsetToPos(insertionPos));
+					}
+				}
 			}
 		})
 
