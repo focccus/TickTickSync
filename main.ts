@@ -390,8 +390,18 @@ export default class TickTickSync extends Plugin {
 				// TODO: dynamically get this
 				const rules: { [key: string]: any } = {
 					'64ba55754e77b16b281aead7': {
-						heading: '## Insights'
+						heading: '## Insights',
+						ratingEmojis: true,
+						ratingFrontMatter: 'mood'
 					}
+				}
+
+				const emojis: any = {
+					10: '😭',
+					20: '😞',
+					30: '😐',
+					40: '😊',
+					50: '🥰'
 				}
 
 				if (!records) return;
@@ -399,13 +409,29 @@ export default class TickTickSync extends Plugin {
 					const rule = rules[checklistId];
 					if (!rule || !rule.heading) continue;
 
+					const rating = habit?.emoji;
+
+					if (rating) {
+						if (rule.ratingFrontMatter && view.file) {
+							this.app.fileManager.processFrontMatter(view.file, (frontmatter) => {
+								frontmatter[rule.ratingFrontMatter] = rating / 10;
+							});
+
+						}
+					}
+
+
 					// Apply the rule's heading to the document
 					const content = editor.getValue();
 					const headingPosition = content.indexOf(rule.heading);
 					if (headingPosition !== -1) {
+						let emoji = '';
+						if (rating && rating in emojis && rule.ratingEmojis) {
+							emoji = ' ' + emojis[rating];
+						}
 						const lineEnd = content.indexOf('\n', headingPosition);
-						const insertionPos = lineEnd !== -1 ? lineEnd + 1 : content.length;
-						editor.replaceRange(`${habit?.content || ''}\n`, editor.offsetToPos(insertionPos));
+						const insertionPos = lineEnd !== -1 ? lineEnd : content.length;
+						editor.replaceRange(`${emoji}\n${habit?.content || ''}`, editor.offsetToPos(insertionPos));
 					}
 				}
 			}
